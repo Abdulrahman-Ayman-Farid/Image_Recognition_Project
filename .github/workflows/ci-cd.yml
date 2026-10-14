@@ -1,0 +1,159 @@
+# =============================================================================
+# CI/CD Workflow — Cats and Dogs Image Recognition Project
+# =============================================================================
+# This workflow runs on every push to main/develop and every pull request
+# targeting main/develop. It performs linting on Python source files and the
+# Jupyter notebook, then builds and pushes a Docker image to GHCR.
+#
+# Pipeline overview:
+#
+#   lint-and-test ──▶ build-and-push (GHCR)
+#
+# -----------------------------------------------------------------------------
+
+name: CI/CD
+
+# -----------------------------------------------------------------------------
+# Triggers
+# -----------------------------------------------------------------------------
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# -----------------------------------------------------------------------------
+# Permissions — least-privilege principle
+# -----------------------------------------------------------------------------
+# contents: read   → checkout the repository
+# packages: write  → push container images to GitHub Container Registry (GHCR)
+#
+# NOTE: The GITHUB_TOKEN secret used for GHCR authentication is automatically
+# provisioned by GitHub Actions at the start of every workflow run. No manual
+# secret needs to be created or stored in the repository settings.
+# -----------------------------------------------------------------------------
+permissions:
+  contents: read
+  packages: write
+
+# -----------------------------------------------------------------------------
+# Concurrency control
+# -----------------------------------------------------------------------------
+# Cancel any in-progress run for the same branch/ref so that only the latest
+# commit is built. This saves runner minutes and avoids stale deployments.
+# -----------------------------------------------------------------------------
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =============================================================================
+  # Job 1: lint-and-test
+  # =============================================================================
+  # Installs project dependencies, then lints Python source files with flake8
+  # and lints the Jupyter notebook with nbqa (flake8 backend).
+  # This job MUST pass before the build-and-push job runs.
+  # =============================================================================
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # --- Checkout repository code ---
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Set up Python 3.12 with pip caching ---
+      # cache: 'pip' caches the pip download directory keyed on requirements.txt,
+      # speeding up subsequent dependency installs.
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # --- Install project dependencies ---
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      # --- Lint Python source files ---
+      # flake8 checks PEP 8 compliance and basic code quality.
+      - name: Lint Python files with flake8
+        run: |
+          pip install flake8
+          flake8 .
+
+      # --- Lint the Jupyter notebook ---
+      # nbqa runs flake8 inside notebook cells so that code quality is
+      # enforced for the CatAndDogsClassifier notebook as well.
+      - name: Lint notebook with nbqa
+        run: |
+          pip install nbqa
+          nbqa flake8 CatAndDogsClassifier.ipynb
+
+  # =============================================================================
+  # Job 2: build-and-push
+  # =============================================================================
+  # Builds the Docker image from the project Dockerfile and pushes it to the
+  # GitHub Container Registry (GHCR).
+  #
+  # Tagging strategy:
+  #   - Always push:  ghcr.io/<owner>/<repo>:<git-sha>   (traceable per commit)
+  #   - On main only: ghcr.io/<owner>/<repo>:latest      (stable release tag)
+  #
+  # The 'latest' tag is conditionally included ONLY when the push targets the
+  # main branch. For develop-branch pushes and pull requests, only the
+  # commit-SHA tag is pushed.
+  # =============================================================================
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    timeout-minutes: 30
+
+    steps:
+      # --- Checkout repository code ---
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Set up Docker Buildx ---
+      # Buildx enables advanced build features including layer caching via the
+      # GitHub Actions cache backend (type=gha).
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --- Log in to GitHub Container Registry ---
+      # GITHUB_TOKEN is automatically provisioned by GitHub Actions — no manual
+      # secret configuration is required. It is scoped by the permissions
+      # declared at the top of this workflow (packages: write).
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Build and push the Docker image ---
+      # The tags list is built dynamically:
+      #   * The commit-SHA tag is always included.
+      #   * The 'latest' tag is appended only when the workflow was triggered
+      #     by a push to the main branch (github.ref == 'refs/heads/main').
+      #
+      # This prevents 'latest' from being overwritten by develop-branch builds
+      # or pull-request builds, keeping it aligned with the main branch.
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/main' && format('ghcr.io/{0}:latest', github.repository) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

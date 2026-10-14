@@ -1,0 +1,64 @@
+# ---------- Version control ----------
+.git
+.gitignore
+
+# ---------- Python bytecode / caches ----------
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# ---------- Virtual environments ----------
+venv
+env
+ENV
+.env
+.env.*
+
+# ---------- Node ----------
+node_modules
+
+# ---------- Trained model artifacts ----------
+*.h5
+*.keras
+*.pb
+*.onnx
+saved_model
+models
+
+# ---------- Datasets & data directories ----------
+data/
+dataset/
+train/
+test/
+validation/
+
+# ---------- Archives ----------
+*.zip
+*.tar.gz
+
+# ---------- Logs ----------
+*.log
+logs/
+
+# ---------- OS files ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Editor / IDE ----------
+.vscode
+.idea
+*.swp
+
+# ---------- Docs & meta files ----------
+docs/
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+LICENSE
+
+# ---------- Docker files (not needed inside the image) ----------
+Dockerfile
+docker-compose.yml
+.dockerignore
