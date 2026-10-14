@@ -1,0 +1,15 @@
+# Service manifest for the Image Recognition Project.
+# Exposes the Deployment internally on port 80, forwarding to the
+# Jupyter Notebook server on container port 8888.
+apiVersion: v1
+kind: Service
+metadata:
+  name: image-recognition-service
+spec:
+  type: ClusterIP
+  selector:
+    app: image-recognition
+  ports:
+    - port: 80
+      targetPort: 8888
+      protocol: TCP

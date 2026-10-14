@@ -1,0 +1,55 @@
+# Deployment manifest for the Image Recognition Project (Jupyter Notebook server).
+# Defines 2 replicas with rolling updates, resource limits, and health probes
+# targeting the /api endpoint on port 8888.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-recognition
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: image-recognition
+  template:
+    metadata:
+      labels:
+        app: image-recognition
+    spec:
+      containers:
+        - name: image-recognition
+          image: ghcr.io/abdulrahman-ayman-farid/image_recognition_project:latest
+          ports:
+            - containerPort: 8888
+          envFrom:
+            - secretRef:
+                name: image-recognition-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /api
+              port: 8888
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api
+              port: 8888
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api
+              port: 8888
+            initialDelaySeconds: 15
+            periodSeconds: 20
