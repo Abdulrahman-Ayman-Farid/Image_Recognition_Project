@@ -1,0 +1,23 @@
+# Cats and Dogs Classifier — Python Dependencies
+# Pinned to versions compatible with TensorFlow 2.15.0 (as used in Google Colab)
+
+# Core ML framework
+tensorflow>=2.10.0
+
+# Numerical computing
+numpy>=1.21.0
+
+# Data visualization
+matplotlib>=3.5.0
+
+# Data manipulation (transitive dependency, commonly used alongside TensorFlow)
+pandas>=1.3.0
+
+# Image I/O (Pillow / PIL)
+Pillow>=9.0.0
+
+# Computer vision image processing
+opencv-python>=4.5.0
+
+# File download utility (used in notebook for dataset download)
+wget>=3.2
